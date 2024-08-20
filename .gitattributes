@@ -1,2 +1,89 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+#include <AdafruitIO_WiFi.h>
+#include <AdafruitIO_Feed.h>
+
+// Configura tus credenciales de Adafruit IO y WiFi
+#define IO_USERNAME  "Isaidesespere"
+#define IO_KEY       "aio_jcuR06YifzWjAKaJf5Kzh5r7VMiu"
+#define WIFI_SSID "iphone Isai"
+#define WIFI_PASS "Bio22247"
+
+// Inicializa la instancia de Adafruit IO
+AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS);
+
+// Pines para las entradas analógicas y el botón
+int pinA0 = 34;
+int pinA1 = 35;
+int pinBoton = 4;
+
+// Función para leer el voltaje de una entrada analógica
+float leerVoltaje(int pin) {
+    int valorADC = analogRead(pin);
+    float voltaje = (valorADC * 3.3) / 4095.0;  // Ajusta el valor de referencia de acuerdo a tu ESP32
+    return voltaje;
+}
+
+// Función para enviar datos al dashboard de Adafruit IO
+void enviarDatosDashboard(float valor, String feed) {
+    AdafruitIO_Feed *dataFeed = io.feed(feed);
+    dataFeed->save(valor);
+}
+
+// Función para convertir el voltaje en un valor adecuado para un display de 7 segmentos
+int convertirParaDisplay(float voltaje) {
+    return map(voltaje, 0, 3.3, 0, 15);  // Mapea el voltaje de 0-3.3V a 0-15
+}
+
+// Función para mostrar el valor en un display de 7 segmentos
+void mostrarEnDisplay7Segmentos(int valor) {
+    // Aquí iría el código para controlar un display de 7 segmentos según tu hardware
+    // Por ejemplo, podrías usar un decodificador BCD a 7 segmentos
+}
+
+// Función para verificar si se presiona el botón y enviar datos al dashboard
+void verificarEnvio(int pinBoton, float valor1, float resultado) {
+    if (digitalRead(pinBoton) == HIGH) {
+        enviarDatosDashboard(valor1, "feed_sensor");
+        enviarDatosDashboard(resultado, "feed_resultado");
+    }
+}
+
+void setup() {
+    // Configura los pines y la comunicación con Adafruit IO
+    pinMode(pinA0, INPUT);
+    pinMode(pinA1, INPUT);
+    pinMode(pinBoton, INPUT_PULLUP);  // Asume un botón con resistencia de pull-up interna
+
+    Serial.begin(115200);
+
+    // Conecta con Adafruit IO
+    io.connect();
+
+    while (io.status() < AIO_CONNECTED) {
+        Serial.print(".");
+        delay(500);
+    }
+    Serial.println();
+    Serial.println("Conectado a Adafruit IO");
+}
+
+void loop() {
+    io.run();  // Mantén la conexión con Adafruit IO
+
+    // Lee los valores de las entradas analógicas
+    float voltaje1 = leerVoltaje(pinA0);
+    float voltaje2 = leerVoltaje(pinA1);
+
+    // Convierte los voltajes para mostrarlos en un display de 7 segmentos
+    int valorDisplay1 = convertirParaDisplay(voltaje1);
+    int valorDisplay2 = convertirParaDisplay(voltaje2);
+
+    // Muestra los valores en el display de 7 segmentos
+    mostrarEnDisplay7Segmentos(valorDisplay1);
+    mostrarEnDisplay7Segmentos(valorDisplay2);
+
+    // Calcula el resultado de la multiplicación de los voltajes
+    float resultado = voltaje1 * voltaje2;
+
+    // Verifica si se ha presionado el botón para enviar los datos
+    verificarEnvio(pinBoton, voltaje1, resultado);
+}
